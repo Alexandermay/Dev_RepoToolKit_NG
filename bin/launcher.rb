@@ -1,0 +1,254 @@
+# RepoToolKit last update 2018-10-13
+Dir['../lib/*.rb'].each { |f| require_relative f }
+# Superclass
+class TuftsScholarship
+  include SetDirectories
+  include CleanFileNames
+  include CreateSubdirectories
+  include CollectionXML
+  include Transforms
+  include PackageBinaries
+  include CleanUpXML
+  include QA
+end
+# Excel ingest processes
+class ExcelBasedIngest < TuftsScholarship
+  include ToRoo
+  def extract
+    clean.excel_subfolders.roo_to_xml
+  end
+
+  def finish
+    package.postprocess_excel_xml.close_directories.qa_it
+  end
+end
+# Specific ingest issues for Springer
+class SpringerIngest < TuftsScholarship
+  include UnzipIt
+  def extract
+    springer_subfolders.unzip
+  end
+
+  def transform_it
+    preprocess_springer_xml.collection.transform_it_springer
+  end
+
+  def finish
+    package.postprocess_springer_xml.close_directories.qa_it
+  end
+end
+# Specific ingest issues for Proquest
+class ProquestIngest < TuftsScholarship
+  include UnzipIt
+
+  def extract
+    proquest_subfolders.unzip
+  end
+
+  def transform_it
+    collection.transform_it_proquest
+  end
+
+  def finish
+    package.postprocess_proquest_xml.close_directories.qa_it
+  end
+end
+# Specific ingest issues for MARC xml
+class InHouseIngest < TuftsScholarship
+  include Rename
+
+  def extract
+    inhouse_subfolders
+  end
+
+  def transform
+    rename_mrc_xml.transform_it_inhouse.rename_xml_to_original
+  end
+
+  def finish
+    package.postprocess_alma_xml.close_directories.qa_it
+  end
+end
+# Create a list of subjects used by catalogers
+class SubjectAnalysis < TuftsScholarship
+  include AnalyzeIt
+end
+
+$is_windows = (RbConfig::CONFIG['host_os'] =~ /mswin|mingw|cygwin/)
+$prompt = '> '
+$saxon_path = ENV['SAXON_PATH']
+$xslt_path = File.expand_path('../xslt', File.dirname(__FILE__))
+
+if !$saxon_path then
+  puts
+  puts 'The environment variable SAXON_PATH is missing or blank.'
+  puts 'SAXON_PATH must contain the full pathname to the saxon jar file.'
+  puts 'Goodbye.'
+  exit
+end
+
+if $is_windows then
+  system ("cls")
+else
+  system ("clear")
+end
+
+require 'colorized_string'
+
+puts `clear`
+puts '***************************************************'
+puts
+puts ColorizedString['Welcome to the Dev Repository Toolkit for MIRA 2.0!'].colorize(:red).underline
+puts
+puts 'What would you like to process?'
+puts
+puts '1. Faculty Scholarship.'
+puts '2. Student Scholarship.'
+puts '3. Nutrition School.'
+puts '4. Art and Art History (Trove).'
+puts '5. Springer Open Access Articles.'
+puts '6. Proquest Electronic Disertations and Theses.'
+puts '7. In-House digitized books.'
+puts '8. Subject Analysis.'
+puts '9. Exit.'
+puts
+
+
+print $prompt
+# Loop
+while input = gets.chomp.strip
+  case input
+    
+  when '1', '1.', 'Faculty'
+    puts
+    puts 'Is this collection:'
+    puts
+    puts '1. Open.'
+    puts '2. Authenticated to Tufts only.'
+    puts '3. Restricted.'
+    puts
+    print $prompt
+    while input = gets.chomp.strip
+      case input
+      when '1'
+        puts 'Launching the Faculty Scholarship script.'
+        a_new_faculty_ingest = ExcelBasedIngest.new
+        a_new_faculty_ingest.extract.faculty.excel.collection.transform.finish
+      when '2'
+        puts 'Launching the Authenticated Faculty Scholarship script.'
+        a_new_faculty_ingest = ExcelBasedIngest.new
+        a_new_faculty_ingest.extract.faculty.authenticated.excel.collection.transform.finish
+        break
+    end
+    end
+    
+  when '2', '2.', 'Student'
+    puts
+    puts 'Is this collection:'
+    puts
+    puts '1. Open.'
+    puts '2. Authenticated to Tufts only.'
+    puts '3. Restricted.'
+    puts
+    print $prompt
+    while input = gets.chomp.strip
+      case input
+      when '1'
+        puts 'Launching the Student Scholarship script.'
+        a_new_student_ingest = ExcelBasedIngest.new
+        a_new_student_ingest.extract.student.excel.collection.transform.finish
+      when '2'
+        puts 'Launching the Authenticated Student Scholarship script.'
+        a_new_student_ingest = ExcelBasedIngest.new
+        a_new_student_ingest.extract.student.authenticated.excel.collection.transform.finish
+        break
+    end
+    end
+
+  when '3', '3.', 'Nutrition'
+    puts
+    puts 'Is this collection:'
+    puts
+    puts '1. Open.'
+    puts '2. Authenticated to Tufts only.'
+    puts '3. Restricted.'
+    puts
+    print $prompt
+    while input = gets.chomp.strip
+      case input
+      when '1'
+    puts
+    puts 'Launching the Nutrtion Scholarship script.'
+    a_new_nutrition_ingest = ExcelBasedIngest.new
+    a_new_nutrition_ingest.extract.nutrition.excel.collection.transform.finish
+  when '2'
+    puts 'Launching the Authenticated Nutrition Scholarship script.'
+    a_new_nutrition_ingest = ExcelBasedIngest.new
+    a_new_nutrition_ingest.extract.nutrtion.authenticated.excel.collection.transform.finish
+    break
+  end
+  end
+
+  when '4', '4.', 'Trove'
+    puts
+    puts 'Is this collection:'
+    puts
+    puts '1. Open.'
+    puts '2. Authenticated to Tufts only.'
+    puts '3. Restricted.'
+    puts
+    print $prompt
+    while input = gets.chomp.strip
+      case input
+        when '1'
+    puts
+    puts 'Launching the Trove script.'
+    a_new_trove_ingest = ExcelBasedIngest.new
+    a_new_trove_ingest.extract.trove.excel.collection.transform.finish
+  when '2'
+    puts 'Launching the Authenticated Trove script.'
+    a_new_trove_ingest = ExcelBasedIngest.new
+    a_new_trove_ingest.extract.trove.authenticated.excel.collection.transform.finish
+    break
+  end
+  end
+
+when '5', '5.', 'Springer'
+  puts
+  puts 'Launching the Springer script.'
+  a_new_springer_ingest = SpringerIngest.new
+  a_new_springer_ingest.extract.transform_it.finish
+  break
+
+when '6', '6.', 'Proquest'
+  puts
+  puts 'Launching the Proquest script.'
+  a_new_proquest_ingest = ProquestIngest.new
+  a_new_proquest_ingest.extract.transform_it.finish
+  break
+
+when '7', '7.', 'inHouse'
+  puts
+  puts 'Launching the in-house script.'
+  a_new_inhouse_ingest = InHouseIngest.new
+  a_new_inhouse_ingest.extract.transform.finish
+  break
+
+when '8', '8.', 'Subject'
+  puts
+  puts 'Launching the Subject Analysis script'
+  a_new_analysis = SubjectAnalysis.new
+  a_new_analysis.subject_only.close_directories.re_qa_subject
+  break
+
+when '10', '10.', '10. Exit', 'Exit', 'exit'
+  puts
+  puts 'Goodbye.'
+  break
+    
+  else
+    puts 'Please select from the above options.'
+    print $prompt
+  end
+  break
+end
